@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สถานะอุปกรณ์ IoT</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <title>สถานะอุปกรณ์ IoT - Real-time Dashboard</title>
+    <!-- ใช้ MQTT.js เวอร์ชันล่าสุด -->
+    <script src="https://unpkg.com/mqtt@5.0.0/dist/mqtt.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -32,34 +33,61 @@
         .status-on { background-color: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
         .status-off { background-color: #f44336; box-shadow: 0 0 10px #f44336; }
         .temperature {
-            font-size: 2em;
+            font-size: 3em;
             font-weight: bold;
         }
         @keyframes pulse {
             0% { transform: scale(0.95); opacity: 0.7; }
             100% { transform: scale(1.1); opacity: 1; }
         }
-        .online {
-            color: #4CAF50;
-            font-weight: bold;
+        .online { color: #4CAF50; font-weight: bold; }
+        .offline { color: #f44336; }
+        .message-log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 10px;
         }
-        .offline {
-            color: #f44336;
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-family: monospace;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
         }
     </style>
 </head>
 <body>
-    <h1>📡 สถานะอุปกรณ์ IoT</h1>
+    <h1>📡 สถานะอุปกรณ์ IoT (Real-time)</h1>
     
     <div class="card">
-        <h2>🔌 การเชื่อมต่อ MQTT</h2>
-        <div id="mqttStatus">กำลังเชื่อมต่อ...</div>
+        <h2>🔌 สถานะการเชื่อมต่อ MQTT</h2>
+        <div id="mqttStatus">🔄 กำลังเชื่อมต่อกับ HiveMQ...</div>
+        <div id="connectionInfo" style="font-size: 0.8em; margin-top: 10px;"></div>
     </div>
     
     <div class="card">
         <h2>💡 ไฟ LED (GPIO2)</h2>
         <div id="ledStatus">
-            <span class="status-led"></span>
+            <span class="status-led status-off"></span>
             <span id="ledText">รอข้อมูล...</span>
         </div>
     </div>
@@ -73,31 +101,93 @@
     <div class="card">
         <h2>📊 ข้อมูลล่าสุด</h2>
         <div id="lastUpdate">รอข้อมูล...</div>
+        <div id="rawData" style="font-family: monospace; font-size: 0.8em; margin-top: 10px;"></div>
+    </div>
+    
+    <div class="card">
+        <h2>📝 ประวัติข้อความที่ได้รับ</h2>
+        <div class="message-log" id="messageLog">
+            <div class="log-entry">⏳ รอรับข้อมูล...</div>
+        </div>
+        <button onclick="clearLog()">ล้างประวัติ</button>
     </div>
 
     <script>
-        // เชื่อมต่อ MQTT ผ่าน WebSocket
-        const brokerUrl = "wss://broker.hivemq.com:8000/mqtt";
-        const clientId = "web_" + Math.random().toString(16).substr(2, 8);
+        let messages = [];
+        let currentData = { led: 0, temperature: 0 };
+        
+        // URL สำหรับ HiveMQ WebSocket (ลองหลายๆ URL)
+        // URL ที่ถูกต้องสำหรับ HiveMQ Public Broker
+        const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
+        // URL สำรอง (ถ้าอันแรกไม่เวิร์ค)
+        // const brokerUrl2 = "wss://mqtt.eclipseprojects.io:443/mqtt";
+        
+        const clientId = "web_dashboard_" + Math.random().toString(36).substr(2, 10);
         const topic = "sumett/status";
         
-        const client = new Paho.MQTT.Client(brokerUrl, clientId);
+        console.log("กำลังเชื่อมต่อกับ:", brokerUrl);
+        console.log("Client ID:", clientId);
         
-        client.onConnectionLost = (responseObject) => {
-            document.getElementById('mqttStatus').innerHTML = 
-                '<span class="offline">❌ ตัดการเชื่อมต่อ</span>';
-            console.log("Connection lost:", responseObject.errorMessage);
-        };
+        // สร้าง MQTT client
+        const client = mqtt.connect(brokerUrl, {
+            clientId: clientId,
+            clean: true,
+            connectTimeout: 4000,
+            reconnectPeriod: 1000,
+            username: '',
+            password: ''
+        });
         
-        client.onMessageArrived = (message) => {
-            console.log("Received:", message.payloadString);
+        client.on('connect', () => {
+            console.log("✅ เชื่อมต่อ MQTT สำเร็จ!");
+            document.getElementById('mqttStatus').innerHTML = '<span class="online">✅ เชื่อมต่อแล้ว กำลังรับข้อมูล...</span>';
+            document.getElementById('connectionInfo').innerHTML = `Client ID: ${clientId} | Broker: ${brokerUrl}`;
+            
+            // Subscribe topic
+            client.subscribe(topic, { qos: 0 }, (err) => {
+                if (!err) {
+                    console.log(`✅ Subscribe to ${topic} สำเร็จ`);
+                    addLog(`✅ Subscribe to ${topic} สำเร็จ`, 'success');
+                } else {
+                    console.error("Subscribe error:", err);
+                    addLog(`❌ Subscribe error: ${err}`, 'error');
+                }
+            });
+        });
+        
+        client.on('message', (topic, message) => {
+            const messageStr = message.toString();
+            console.log(`📨 Received on ${topic}:`, messageStr);
+            
+            addLog(`📨 ${new Date().toLocaleTimeString()} - ${topic}: ${messageStr}`, 'data');
+            
             try {
-                const data = JSON.parse(message.payloadString);
+                const data = JSON.parse(messageStr);
+                currentData = data;
                 updateUI(data);
             } catch(e) {
                 console.error("JSON parse error:", e);
+                document.getElementById('rawData').innerHTML = `Raw: ${messageStr}`;
             }
-        };
+        });
+        
+        client.on('error', (err) => {
+            console.error("❌ MQTT Error:", err);
+            document.getElementById('mqttStatus').innerHTML = `<span class="offline">❌ Error: ${err.message}</span>`;
+            addLog(`❌ Error: ${err.message}`, 'error');
+        });
+        
+        client.on('reconnect', () => {
+            console.log("🔄 กำลัง reconnect...");
+            document.getElementById('mqttStatus').innerHTML = '<span class="offline">🔄 กำลัง reconnect...</span>';
+            addLog('🔄 กำลัง reconnect...', 'info');
+        });
+        
+        client.on('offline', () => {
+            console.log("📴 ออฟไลน์");
+            document.getElementById('mqttStatus').innerHTML = '<span class="offline">📴 ออฟไลน์</span>';
+            addLog('📴 ออฟไลน์', 'info');
+        });
         
         function updateUI(data) {
             // อัปเดตสถานะ LED
@@ -109,33 +199,56 @@
             `;
             
             // อัปเดตอุณหภูมิ
-            document.getElementById('temperature').innerHTML = data.temperature;
+            if (data.temperature) {
+                document.getElementById('temperature').innerHTML = data.temperature;
+                // เปลี่ยนสีตามอุณหภูมิ
+                const tempElem = document.getElementById('temperature');
+                if (data.temperature > 30) {
+                    tempElem.style.color = '#ff6b6b';
+                } else if (data.temperature < 20) {
+                    tempElem.style.color = '#4ecdc4';
+                } else {
+                    tempElem.style.color = 'white';
+                }
+            }
             
             // อัปเดตเวลาล่าสุด
             const now = new Date();
-            document.getElementById('lastUpdate').innerHTML = 
-                `อัปเดตล่าสุด: ${now.toLocaleTimeString()}`;
+            document.getElementById('lastUpdate').innerHTML = `อัปเดตล่าสุด: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+            document.getElementById('rawData').innerHTML = `Raw JSON: ${JSON.stringify(data, null, 2)}`;
         }
         
-        function connect() {
-            client.connect({
-                onSuccess: () => {
-                    document.getElementById('mqttStatus').innerHTML = 
-                        '<span class="online">✅ เชื่อมต่อแล้ว กำลังรับข้อมูล...</span>';
-                    client.subscribe(topic);
-                    console.log("Connected and subscribed to", topic);
-                },
-                onFailure: (err) => {
-                    document.getElementById('mqttStatus').innerHTML = 
-                        `<span class="offline">❌ เชื่อมต่อล้มเหลว: ${err.errorMessage}</span>`;
-                    console.log("Connection failed:", err);
-                    setTimeout(connect, 5000);
-                },
-                useSSL: true
-            });
+        function addLog(message, type = 'data') {
+            const logDiv = document.getElementById('messageLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            let color = '';
+            if (type === 'error') color = '#ff6b6b';
+            else if (type === 'success') color = '#4CAF50';
+            else if (type === 'info') color = '#4ecdc4';
+            else color = 'white';
+            
+            entry.style.color = color;
+            entry.innerHTML = message;
+            
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            // เก็บแค่ 50 ข้อความล่าสุด
+            while (logDiv.children.length > 50) {
+                logDiv.removeChild(logDiv.firstChild);
+            }
         }
         
-        connect();
+        function clearLog() {
+            const logDiv = document.getElementById('messageLog');
+            logDiv.innerHTML = '<div class="log-entry">🗑️ ล้างประวัติแล้ว</div>';
+        }
+        
+        // แสดงเวลาเชื่อมต่อ
+        console.log("✅ Script loaded, connecting to MQTT...");
+        addLog('🚀 หน้าเว็บโหลดเสร็จ กำลังเชื่อมต่อ MQTT...', 'info');
     </script>
 </body>
 </html>
