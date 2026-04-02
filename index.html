@@ -3,252 +3,488 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สถานะอุปกรณ์ IoT - Real-time Dashboard</title>
-    <!-- ใช้ MQTT.js เวอร์ชันล่าสุด -->
+    <title>ESP8266 IoT Dashboard | Real-time Monitor</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts - Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt@5.0.0/dist/mqtt.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Chart.js สำหรับกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        * {
+            font-family: 'Kanit', sans-serif;
         }
-        .card {
-            background: rgba(255,255,255,0.1);
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
             border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
             padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
-        .status-led {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
+        
+        .stat-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        .status-on { background-color: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
-        .status-off { background-color: #f44336; box-shadow: 0 0 10px #f44336; }
-        .temperature {
-            font-size: 3em;
-            font-weight: bold;
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #667eea;
         }
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.7; }
-            100% { transform: scale(1.1); opacity: 1; }
-        }
-        .online { color: #4CAF50; font-weight: bold; }
-        .offline { color: #f44336; }
-        .message-log {
-            max-height: 200px;
-            overflow-y: auto;
+        
+        .stat-label {
+            color: #666;
             font-size: 0.9em;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            padding: 10px;
+            margin-top: 10px;
         }
-        .log-entry {
-            padding: 5px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-family: monospace;
+        
+        .led-indicator {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
         }
-        button {
+        
+        .led-on {
+            background: #4CAF50;
+            box-shadow: 0 0 20px #4CAF50;
+        }
+        
+        .led-off {
+            background: #f44336;
+            box-shadow: 0 0 20px #f44336;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            100% { transform: scale(1.05); opacity: 1; }
+        }
+        
+        .connection-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .connection-online {
             background: #4CAF50;
             color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 5px;
         }
-        button:hover {
-            background: #45a049;
+        
+        .connection-offline {
+            background: #f44336;
+            color: white;
         }
-        input {
-            padding: 8px;
-            margin: 5px;
-            border-radius: 5px;
-            border: none;
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .progress-bar-custom {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .value-updated {
+            animation: valueFlash 0.5s ease;
+        }
+        
+        @keyframes valueFlash {
+            0% { opacity: 0.5; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .timestamp {
+            font-size: 0.85em;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
         }
     </style>
 </head>
 <body>
-    <h1>📡 สถานะอุปกรณ์ IoT (Real-time)</h1>
-    
-    <div class="card">
-        <h2>🔌 สถานะการเชื่อมต่อ MQTT</h2>
-        <div id="mqttStatus">🔄 กำลังเชื่อมต่อกับ HiveMQ...</div>
-        <div id="connectionInfo" style="font-size: 0.8em; margin-top: 10px;"></div>
-    </div>
-    
-    <div class="card">
-        <h2>💡 ไฟ LED (GPIO2)</h2>
-        <div id="ledStatus">
-            <span class="status-led status-off"></span>
-            <span id="ledText">รอข้อมูล...</span>
+    <div class="container">
+        <!-- Header -->
+        <div class="text-center mb-5" data-aos="fade-down">
+            <h1 class="text-white mb-3">
+                <i class="fas fa-microchip"></i> ESP8266 IoT Dashboard
+            </h1>
+            <p class="text-white-50">Real-time Monitoring System</p>
+            <div id="connectionStatus" class="connection-badge connection-offline">
+                <i class="fas fa-circle"></i> กำลังเชื่อมต่อ...
+            </div>
+        </div>
+        
+        <!-- Main Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="100">
+                <div class="stat-card" onclick="showDetail('temperature')">
+                    <i class="fas fa-temperature-high fa-2x" style="color: #ff6b6b;"></i>
+                    <div class="stat-value" id="temperature">--</div>
+                    <div class="stat-label">อุณหภูมิ (°C)</div>
+                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="200">
+                <div class="stat-card" onclick="showDetail('led')">
+                    <i class="fas fa-lightbulb fa-2x" style="color: #ffd93d;"></i>
+                    <div class="stat-value" id="ledStatus">--</div>
+                    <div class="stat-label">สถานะ LED</div>
+                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="300">
+                <div class="stat-card" onclick="showDetail('rssi')">
+                    <i class="fas fa-wifi fa-2x" style="color: #4ecdc4;"></i>
+                    <div class="stat-value" id="rssi">--</div>
+                    <div class="stat-label">WiFi Signal (dBm)</div>
+                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="400">
+                <div class="stat-card" onclick="showDetail('uptime')">
+                    <i class="fas fa-clock fa-2x" style="color: #a8e6cf;"></i>
+                    <div class="stat-value" id="uptime">--</div>
+                    <div class="stat-label">Uptime (วินาที)</div>
+                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Details Card -->
+        <div class="row mb-4">
+            <div class="col-12" data-aos="fade-up" data-aos-delay="500">
+                <div class="glass-card p-4">
+                    <h4 class="text-white mb-4">
+                        <i class="fas fa-chart-line"></i> ระบบสถานะ
+                    </h4>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white mb-2">
+                                <i class="fas fa-memory"></i> หน่วยความจำ (RAM)
+                            </div>
+                            <div class="progress-bar-custom">
+                                <div class="progress-fill" id="heapProgress" style="width: 0%"></div>
+                            </div>
+                            <div class="text-white-50 mt-1">
+                                <span id="freeHeap">--</span> bytes ว่าง
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white mb-2">
+                                <i class="fas fa-tachometer-alt"></i> การแยกส่วนของ RAM
+                            </div>
+                            <div class="progress-bar-custom">
+                                <div class="progress-fill" id="fragProgress" style="width: 0%; background: #ff6b6b;"></div>
+                            </div>
+                            <div class="text-white-50 mt-1">
+                                <span id="heapFrag">--</span>%
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white">
+                                <i class="fas fa-microchip"></i> CPU ความถี่: 
+                                <strong id="cpuFreq">--</strong> MHz
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white">
+                                <i class="fas fa-database"></i> Flash Memory: 
+                                <strong id="flashSize">--</strong> MB
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white">
+                                <i class="fas fa-id-card"></i> Chip ID: 
+                                <strong id="chipId">--</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- LED Visual Indicator -->
+        <div class="row mb-4">
+            <div class="col-12" data-aos="fade-up" data-aos-delay="600">
+                <div class="glass-card p-4 text-center">
+                    <h4 class="text-white mb-3">
+                        <i class="fas fa-lightbulb"></i> สถานะ LED ปัจจุบัน
+                    </h4>
+                    <div class="led-indicator" id="ledVisual"></div>
+                    <div class="text-white mt-3" id="ledText">รอข้อมูล...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timestamp -->
+        <div class="text-center timestamp" data-aos="fade-up">
+            <i class="fas fa-sync-alt"></i> อัปเดตล่าสุด: <span id="lastUpdate">--:--:--</span>
         </div>
     </div>
     
-    <div class="card">
-        <h2>🌡️ อุณหภูมิ</h2>
-        <div class="temperature" id="temperature">--</div>
-        <div>°C</div>
-    </div>
-    
-    <div class="card">
-        <h2>📊 ข้อมูลล่าสุด</h2>
-        <div id="lastUpdate">รอข้อมูล...</div>
-        <div id="rawData" style="font-family: monospace; font-size: 0.8em; margin-top: 10px;"></div>
-    </div>
-    
-    <div class="card">
-        <h2>📝 ประวัติข้อความที่ได้รับ</h2>
-        <div class="message-log" id="messageLog">
-            <div class="log-entry">⏳ รอรับข้อมูล...</div>
-        </div>
-        <button onclick="clearLog()">ล้างประวัติ</button>
-    </div>
-
     <script>
-        let messages = [];
-        let currentData = { led: 0, temperature: 0 };
-        
-        // URL สำหรับ HiveMQ WebSocket (ลองหลายๆ URL)
-        // URL ที่ถูกต้องสำหรับ HiveMQ Public Broker
+        // MQTT Configuration
         const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
-        // URL สำรอง (ถ้าอันแรกไม่เวิร์ค)
-        // const brokerUrl2 = "wss://mqtt.eclipseprojects.io:443/mqtt";
-        
         const clientId = "web_dashboard_" + Math.random().toString(36).substr(2, 10);
         const topic = "sumett/status";
         
-        console.log("กำลังเชื่อมต่อกับ:", brokerUrl);
-        console.log("Client ID:", clientId);
+        let client = null;
+        let currentData = {};
         
-        // สร้าง MQTT client
-        const client = mqtt.connect(brokerUrl, {
-            clientId: clientId,
-            clean: true,
-            connectTimeout: 4000,
-            reconnectPeriod: 1000,
-            username: '',
-            password: ''
+        // Initialize AOS
+        AOS.init({
+            duration: 1000,
+            once: true
         });
         
-        client.on('connect', () => {
-            console.log("✅ เชื่อมต่อ MQTT สำเร็จ!");
-            document.getElementById('mqttStatus').innerHTML = '<span class="online">✅ เชื่อมต่อแล้ว กำลังรับข้อมูล...</span>';
-            document.getElementById('connectionInfo').innerHTML = `Client ID: ${clientId} | Broker: ${brokerUrl}`;
-            
-            // Subscribe topic
-            client.subscribe(topic, { qos: 0 }, (err) => {
-                if (!err) {
-                    console.log(`✅ Subscribe to ${topic} สำเร็จ`);
-                    addLog(`✅ Subscribe to ${topic} สำเร็จ`, 'success');
-                } else {
-                    console.error("Subscribe error:", err);
-                    addLog(`❌ Subscribe error: ${err}`, 'error');
+        // Show detail with SweetAlert
+        function showDetail(type) {
+            switch(type) {
+                case 'temperature':
+                    Swal.fire({
+                        title: '🌡️ อุณหภูมิ',
+                        html: `ค่าปัจจุบัน: <strong>${currentData.temp || '--'}</strong> °C<br>
+                               <small>อัปเดตล่าสุด: ${document.getElementById('lastUpdate').innerText}</small>`,
+                        icon: 'info',
+                        confirmButtonColor: '#667eea'
+                    });
+                    break;
+                case 'led':
+                    Swal.fire({
+                        title: '💡 สถานะ LED',
+                        html: `LED กำลัง <strong>${currentData.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่'}</strong><br>
+                               <div class="led-indicator ${currentData.led === 1 ? 'led-on' : 'led-off'}" style="width: 40px; height: 40px; margin: 10px auto;"></div>`,
+                        icon: currentData.led === 1 ? 'success' : 'error',
+                        confirmButtonColor: '#667eea'
+                    });
+                    break;
+                case 'rssi':
+                    let quality = currentData.rssi > -50 ? 'ดีมาก' : (currentData.rssi > -70 ? 'ปานกลาง' : 'อ่อน');
+                    Swal.fire({
+                        title: '📶 ความแรงสัญญาณ WiFi',
+                        html: `ค่า: <strong>${currentData.rssi || '--'}</strong> dBm<br>
+                               คุณภาพ: <strong>${quality}</strong>`,
+                        icon: currentData.rssi > -70 ? 'success' : 'warning',
+                        confirmButtonColor: '#667eea'
+                    });
+                    break;
+                case 'uptime':
+                    let hours = Math.floor(currentData.uptime / 3600);
+                    let minutes = Math.floor((currentData.uptime % 3600) / 60);
+                    let seconds = currentData.uptime % 60;
+                    Swal.fire({
+                        title: '⏱️ เวลาทำงาน (Uptime)',
+                        html: `${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที<br>
+                               <small>รวม: ${currentData.uptime || 0} วินาที</small>`,
+                        icon: 'info',
+                        confirmButtonColor: '#667eea'
+                    });
+                    break;
+            }
+        }
+        
+        // Update UI with animation
+        function updateUI(data) {
+            // Add animation class
+            const elements = ['temperature', 'freeHeap', 'heapFrag', 'rssi', 'uptime'];
+            elements.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.classList.add('value-updated');
+                    setTimeout(() => elem.classList.remove('value-updated'), 500);
                 }
             });
-        });
-        
-        client.on('message', (topic, message) => {
-            const messageStr = message.toString();
-            console.log(`📨 Received on ${topic}:`, messageStr);
             
-            addLog(`📨 ${new Date().toLocaleTimeString()} - ${topic}: ${messageStr}`, 'data');
-            
-            try {
-                const data = JSON.parse(messageStr);
-                currentData = data;
-                updateUI(data);
-            } catch(e) {
-                console.error("JSON parse error:", e);
-                document.getElementById('rawData').innerHTML = `Raw: ${messageStr}`;
-            }
-        });
-        
-        client.on('error', (err) => {
-            console.error("❌ MQTT Error:", err);
-            document.getElementById('mqttStatus').innerHTML = `<span class="offline">❌ Error: ${err.message}</span>`;
-            addLog(`❌ Error: ${err.message}`, 'error');
-        });
-        
-        client.on('reconnect', () => {
-            console.log("🔄 กำลัง reconnect...");
-            document.getElementById('mqttStatus').innerHTML = '<span class="offline">🔄 กำลัง reconnect...</span>';
-            addLog('🔄 กำลัง reconnect...', 'info');
-        });
-        
-        client.on('offline', () => {
-            console.log("📴 ออฟไลน์");
-            document.getElementById('mqttStatus').innerHTML = '<span class="offline">📴 ออฟไลน์</span>';
-            addLog('📴 ออฟไลน์', 'info');
-        });
-        
-        function updateUI(data) {
-            // อัปเดตสถานะ LED
-            const ledDiv = document.getElementById('ledStatus');
-            const ledStatus = data.led === 1 ? 'on' : 'off';
-            ledDiv.innerHTML = `
-                <span class="status-led status-${ledStatus}"></span>
-                <span id="ledText">${data.led === 1 ? '✅ เปิดอยู่' : '❌ ปิดอยู่'}</span>
-            `;
-            
-            // อัปเดตอุณหภูมิ
-            if (data.temperature) {
-                document.getElementById('temperature').innerHTML = data.temperature;
-                // เปลี่ยนสีตามอุณหภูมิ
-                const tempElem = document.getElementById('temperature');
-                if (data.temperature > 30) {
-                    tempElem.style.color = '#ff6b6b';
-                } else if (data.temperature < 20) {
-                    tempElem.style.color = '#4ecdc4';
+            // Update temperature
+            if (data.temp) {
+                document.getElementById('temperature').innerHTML = data.temp;
+                if (data.temp > 30) {
+                    document.getElementById('temperature').style.color = '#ff6b6b';
+                } else if (data.temp < 20) {
+                    document.getElementById('temperature').style.color = '#4ecdc4';
                 } else {
-                    tempElem.style.color = 'white';
+                    document.getElementById('temperature').style.color = '#667eea';
                 }
             }
             
-            // อัปเดตเวลาล่าสุด
-            const now = new Date();
-            document.getElementById('lastUpdate').innerHTML = `อัปเดตล่าสุด: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-            document.getElementById('rawData').innerHTML = `Raw JSON: ${JSON.stringify(data, null, 2)}`;
-        }
-        
-        function addLog(message, type = 'data') {
-            const logDiv = document.getElementById('messageLog');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            
-            let color = '';
-            if (type === 'error') color = '#ff6b6b';
-            else if (type === 'success') color = '#4CAF50';
-            else if (type === 'info') color = '#4ecdc4';
-            else color = 'white';
-            
-            entry.style.color = color;
-            entry.innerHTML = message;
-            
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-            
-            // เก็บแค่ 50 ข้อความล่าสุด
-            while (logDiv.children.length > 50) {
-                logDiv.removeChild(logDiv.firstChild);
+            // Update LED
+            if (data.led !== undefined) {
+                const ledText = data.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่';
+                document.getElementById('ledStatus').innerHTML = ledText;
+                document.getElementById('ledText').innerHTML = `LED กำลัง ${ledText}`;
+                
+                const ledVisual = document.getElementById('ledVisual');
+                ledVisual.className = `led-indicator ${data.led === 1 ? 'led-on' : 'led-off'}`;
             }
+            
+            // Update RSSI
+            if (data.rssi) {
+                document.getElementById('rssi').innerHTML = data.rssi;
+                let rssiColor = data.rssi > -50 ? '#4CAF50' : (data.rssi > -70 ? '#FFC107' : '#f44336');
+                document.getElementById('rssi').style.color = rssiColor;
+            }
+            
+            // Update uptime
+            if (data.uptime) {
+                let hours = Math.floor(data.uptime / 3600);
+                let minutes = Math.floor((data.uptime % 3600) / 60);
+                let seconds = data.uptime % 60;
+                document.getElementById('uptime').innerHTML = `${hours}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+            }
+            
+            // Update system info
+            if (data.heap) {
+                document.getElementById('freeHeap').innerHTML = data.heap;
+                let heapPercent = (data.heap / 50000) * 100;
+                document.getElementById('heapProgress').style.width = Math.min(heapPercent, 100) + '%';
+            }
+            
+            if (data.frag !== undefined) {
+                document.getElementById('heapFrag').innerHTML = data.frag;
+                document.getElementById('fragProgress').style.width = Math.min(data.frag, 100) + '%';
+            }
+            
+            if (data.cpu) document.getElementById('cpuFreq').innerHTML = data.cpu;
+            if (data.flash) document.getElementById('flashSize').innerHTML = data.flash;
+            if (data.chip) document.getElementById('chipId').innerHTML = data.chip;
+            
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('lastUpdate').innerHTML = now.toLocaleTimeString('th-TH');
+            
+            // Store current data
+            currentData = data;
         }
         
-        function clearLog() {
-            const logDiv = document.getElementById('messageLog');
-            logDiv.innerHTML = '<div class="log-entry">🗑️ ล้างประวัติแล้ว</div>';
+        // Connect to MQTT
+        function connectMQTT() {
+            client = mqtt.connect(brokerUrl, {
+                clientId: clientId,
+                clean: true,
+                connectTimeout: 4000,
+                reconnectPeriod: 1000
+            });
+            
+            client.on('connect', () => {
+                console.log('✅ MQTT Connected');
+                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออนไลน์';
+                document.getElementById('connectionStatus').className = 'connection-badge connection-online';
+                
+                client.subscribe(topic, { qos: 0 }, (err) => {
+                    if (!err) {
+                        console.log('✅ Subscribed to', topic);
+                        Swal.fire({
+                            title: 'เชื่อมต่อสำเร็จ!',
+                            text: 'กำลังรับข้อมูลจาก ESP8266',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                });
+            });
+            
+            client.on('message', (topic, message) => {
+                const messageStr = message.toString();
+                console.log('📨 Received:', messageStr);
+                
+                try {
+                    const data = JSON.parse(messageStr);
+                    updateUI(data);
+                } catch(e) {
+                    console.error('JSON parse error:', e);
+                }
+            });
+            
+            client.on('error', (err) => {
+                console.error('❌ MQTT Error:', err);
+                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออฟไลน์';
+                document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
+            });
+            
+            client.on('reconnect', () => {
+                console.log('🔄 Reconnecting...');
+                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> กำลังเชื่อมต่อใหม่...';
+                document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
+            });
         }
         
-        // แสดงเวลาเชื่อมต่อ
-        console.log("✅ Script loaded, connecting to MQTT...");
-        addLog('🚀 หน้าเว็บโหลดเสร็จ กำลังเชื่อมต่อ MQTT...', 'info');
+        // Start connection
+        connectMQTT();
     </script>
 </body>
 </html>
