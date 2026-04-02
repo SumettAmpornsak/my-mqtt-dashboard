@@ -17,7 +17,7 @@
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Paho MQTT (Stable) -->
+    <!-- Paho MQTT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     
     <style>
@@ -178,38 +178,34 @@
             color: rgba(255,255,255,0.7);
         }
         
-        /* Loading spinner */
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+        .control-btn {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            transition: all 0.3s ease;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .control-btn:hover {
+            transform: scale(1.05);
         }
         
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
+        .btn-on {
+            background: #4CAF50;
+            color: white;
+            border: none;
         }
         
-        ::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
+        .btn-off {
+            background: #f44336;
+            color: white;
+            border: none;
         }
         
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.3);
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.5);
+        .btn-toggle {
+            background: #ff9800;
+            color: white;
+            border: none;
         }
         
         /* Responsive */
@@ -221,6 +217,10 @@
                 width: 60px;
                 height: 60px;
             }
+            .control-btn {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
         }
     </style>
 </head>
@@ -231,15 +231,40 @@
             <h1 class="text-white mb-3">
                 <i class="fas fa-microchip"></i> ESP8266 IoT Dashboard
             </h1>
-            <p class="text-white-50">Real-time Monitoring System | MQTT over WebSocket</p>
+            <p class="text-white-50">Real-time Monitoring & Control System</p>
             <div id="connectionStatus" class="connection-badge connection-offline">
                 <i class="fas fa-circle"></i> กำลังเชื่อมต่อ...
             </div>
         </div>
         
+        <!-- Control Panel -->
+        <div class="row mb-4">
+            <div class="col-12" style="animation: slideUp 0.6s ease 0.1s both;">
+                <div class="glass-card p-4 text-center">
+                    <h4 class="text-white mb-3">
+                        <i class="fas fa-gamepad"></i> ควบคุม LED
+                    </h4>
+                    <div>
+                        <button class="control-btn btn-on" onclick="sendCommand('ON')">
+                            <i class="fas fa-power-off"></i> เปิด LED
+                        </button>
+                        <button class="control-btn btn-off" onclick="sendCommand('OFF')">
+                            <i class="fas fa-power-off"></i> ปิด LED
+                        </button>
+                        <button class="control-btn btn-toggle" onclick="sendCommand('TOGGLE')">
+                            <i class="fas fa-sync-alt"></i> เปลี่ยนสถานะ
+                        </button>
+                    </div>
+                    <div class="text-white-50 mt-3">
+                        <small><i class="fas fa-info-circle"></i> ส่งคำสั่งผ่าน MQTT topic: sumett/control</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Main Stats Row -->
         <div class="row mb-4">
-            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.1s both;">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.2s both;">
                 <div class="stat-card" onclick="showDetail('temperature')">
                     <i class="fas fa-temperature-high fa-2x" style="color: #ff6b6b;"></i>
                     <div class="stat-value" id="temperature">--</div>
@@ -248,7 +273,7 @@
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.2s both;">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.3s both;">
                 <div class="stat-card" onclick="showDetail('led')">
                     <i class="fas fa-lightbulb fa-2x" style="color: #ffd93d;"></i>
                     <div class="stat-value" id="ledStatus">--</div>
@@ -257,7 +282,7 @@
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.3s both;">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.4s both;">
                 <div class="stat-card" onclick="showDetail('rssi')">
                     <i class="fas fa-wifi fa-2x" style="color: #4ecdc4;"></i>
                     <div class="stat-value" id="rssi">--</div>
@@ -266,7 +291,7 @@
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.4s both;">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.5s both;">
                 <div class="stat-card" onclick="showDetail('uptime')">
                     <i class="fas fa-clock fa-2x" style="color: #a8e6cf;"></i>
                     <div class="stat-value" id="uptime">--</div>
@@ -352,10 +377,40 @@
         // MQTT Configuration
         const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
         const clientId = "web_dashboard_" + Math.random().toString(36).substr(2, 10);
-        const topic = "sumett/status";
+        const statusTopic = "sumett/status";
+        const controlTopic = "sumett/control";
         
         let client = null;
         let currentData = {};
+        
+        // ✅ ฟังก์ชันส่งคำสั่งควบคุม LED
+        function sendCommand(command) {
+            if (!client || !client.isConnected()) {
+                Swal.fire({
+                    title: 'ไม่สามารถส่งคำสั่งได้',
+                    text: 'กรุณารอการเชื่อมต่อ MQTT ก่อน',
+                    icon: 'error',
+                    confirmButtonColor: '#667eea'
+                });
+                return;
+            }
+            
+            const message = new Paho.MQTT.Message(command);
+            message.destinationName = controlTopic;
+            client.send(message);
+            
+            Swal.fire({
+                title: 'ส่งคำสั่งแล้ว!',
+                text: `คำสั่ง: ${command === 'ON' ? 'เปิด LED' : (command === 'OFF' ? 'ปิด LED' : 'เปลี่ยนสถานะ LED')}`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white'
+            });
+            
+            console.log(`📤 Command sent: ${command}`);
+        }
         
         // Show detail with SweetAlert
         function showDetail(type) {
@@ -434,7 +489,6 @@
         
         // Update UI with animation
         function updateUI(data) {
-            // Add animation class to all value elements
             const elements = ['temperature', 'freeHeap', 'heapFrag', 'rssi', 'uptime'];
             elements.forEach(id => {
                 const elem = document.getElementById(id);
@@ -444,14 +498,12 @@
                 }
             });
             
-            // Update temperature
             if (data.temp !== undefined) {
                 document.getElementById('temperature').innerHTML = data.temp;
                 let tempColor = data.temp > 30 ? '#ff6b6b' : (data.temp < 20 ? '#4ecdc4' : '#ffd93d');
                 document.getElementById('temperature').style.color = tempColor;
             }
             
-            // Update LED
             if (data.led !== undefined) {
                 const ledText = data.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่';
                 document.getElementById('ledStatus').innerHTML = ledText;
@@ -461,19 +513,16 @@
                 ledVisual.className = `led-indicator ${data.led === 1 ? 'led-on' : 'led-off'}`;
             }
             
-            // Update RSSI
             if (data.rssi !== undefined) {
                 document.getElementById('rssi').innerHTML = data.rssi;
                 let rssiColor = data.rssi > -50 ? '#4CAF50' : (data.rssi > -70 ? '#FFC107' : '#f44336');
                 document.getElementById('rssi').style.color = rssiColor;
             }
             
-            // Update uptime
             if (data.uptime !== undefined) {
                 document.getElementById('uptime').innerHTML = formatUptime(data.uptime);
             }
             
-            // Update system info
             if (data.heap !== undefined) {
                 document.getElementById('freeHeap').innerHTML = data.heap;
                 let heapPercent = (data.heap / 50000) * 100;
@@ -489,15 +538,13 @@
             if (data.flash !== undefined) document.getElementById('flashSize').innerHTML = data.flash;
             if (data.chip !== undefined) document.getElementById('chipId').innerHTML = data.chip;
             
-            // Update timestamp
             const now = new Date();
             document.getElementById('lastUpdate').innerHTML = now.toLocaleTimeString('th-TH');
             
-            // Store current data
             currentData = data;
         }
         
-        // Connect to MQTT using Paho
+        // Connect to MQTT
         function connectMQTT() {
             client = new Paho.MQTT.Client(brokerUrl, clientId);
             
@@ -523,12 +570,12 @@
                     document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออนไลน์';
                     document.getElementById('connectionStatus').className = 'connection-badge connection-online';
                     
-                    client.subscribe(topic);
-                    console.log("Subscribed to:", topic);
+                    client.subscribe(statusTopic);
+                    console.log("Subscribed to:", statusTopic);
                     
                     Swal.fire({
                         title: 'เชื่อมต่อสำเร็จ! 🎉',
-                        text: 'กำลังรับข้อมูลจาก ESP8266 แบบ Real-time',
+                        text: 'สามารถควบคุม LED ผ่านปุ่มด้านบนได้เลย',
                         icon: 'success',
                         timer: 2000,
                         showConfirmButton: false,
