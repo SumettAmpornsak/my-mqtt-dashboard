@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สถานะอุปกรณ์ IoT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+        }
+        .status-led {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        .status-on { background-color: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .status-off { background-color: #f44336; box-shadow: 0 0 10px #f44336; }
+        .temperature {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            100% { transform: scale(1.1); opacity: 1; }
+        }
+        .online {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .offline {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>📡 สถานะอุปกรณ์ IoT</h1>
+    
+    <div class="card">
+        <h2>🔌 การเชื่อมต่อ MQTT</h2>
+        <div id="mqttStatus">กำลังเชื่อมต่อ...</div>
+    </div>
+    
+    <div class="card">
+        <h2>💡 ไฟ LED (GPIO2)</h2>
+        <div id="ledStatus">
+            <span class="status-led"></span>
+            <span id="ledText">รอข้อมูล...</span>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>🌡️ อุณหภูมิ</h2>
+        <div class="temperature" id="temperature">--</div>
+        <div>°C</div>
+    </div>
+    
+    <div class="card">
+        <h2>📊 ข้อมูลล่าสุด</h2>
+        <div id="lastUpdate">รอข้อมูล...</div>
+    </div>
+
+    <script>
+        // เชื่อมต่อ MQTT ผ่าน WebSocket
+        const brokerUrl = "wss://broker.hivemq.com:8000/mqtt";
+        const clientId = "web_" + Math.random().toString(16).substr(2, 8);
+        const topic = "sumett/status";
+        
+        const client = new Paho.MQTT.Client(brokerUrl, clientId);
+        
+        client.onConnectionLost = (responseObject) => {
+            document.getElementById('mqttStatus').innerHTML = 
+                '<span class="offline">❌ ตัดการเชื่อมต่อ</span>';
+            console.log("Connection lost:", responseObject.errorMessage);
+        };
+        
+        client.onMessageArrived = (message) => {
+            console.log("Received:", message.payloadString);
+            try {
+                const data = JSON.parse(message.payloadString);
+                updateUI(data);
+            } catch(e) {
+                console.error("JSON parse error:", e);
+            }
+        };
+        
+        function updateUI(data) {
+            // อัปเดตสถานะ LED
+            const ledDiv = document.getElementById('ledStatus');
+            const ledStatus = data.led === 1 ? 'on' : 'off';
+            ledDiv.innerHTML = `
+                <span class="status-led status-${ledStatus}"></span>
+                <span id="ledText">${data.led === 1 ? '✅ เปิดอยู่' : '❌ ปิดอยู่'}</span>
+            `;
+            
+            // อัปเดตอุณหภูมิ
+            document.getElementById('temperature').innerHTML = data.temperature;
+            
+            // อัปเดตเวลาล่าสุด
+            const now = new Date();
+            document.getElementById('lastUpdate').innerHTML = 
+                `อัปเดตล่าสุด: ${now.toLocaleTimeString()}`;
+        }
+        
+        function connect() {
+            client.connect({
+                onSuccess: () => {
+                    document.getElementById('mqttStatus').innerHTML = 
+                        '<span class="online">✅ เชื่อมต่อแล้ว กำลังรับข้อมูล...</span>';
+                    client.subscribe(topic);
+                    console.log("Connected and subscribed to", topic);
+                },
+                onFailure: (err) => {
+                    document.getElementById('mqttStatus').innerHTML = 
+                        `<span class="offline">❌ เชื่อมต่อล้มเหลว: ${err.errorMessage}</span>`;
+                    console.log("Connection failed:", err);
+                    setTimeout(connect, 5000);
+                },
+                useSSL: true
+            });
+        }
+        
+        connect();
+    </script>
+</body>
+</html>
