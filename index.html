@@ -47,6 +47,11 @@
             animation: slideUp 0.6s ease;
         }
         
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+        }
+        
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -56,11 +61,6 @@
                 opacity: 1;
                 transform: translateY(0);
             }
-        }
-        
-        .glass-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
         }
         
         .stat-card {
@@ -108,12 +108,12 @@
             height: 80px;
             border-radius: 50%;
             transition: all 0.3s ease;
-            animation: pulse 1.5s infinite;
         }
         
         .led-on {
             background: #4CAF50;
             box-shadow: 0 0 30px #4CAF50;
+            animation: pulse 1.5s infinite;
         }
         
         .led-off {
@@ -121,10 +121,22 @@
             box-shadow: 0 0 30px #f44336;
         }
         
+        .led-blink {
+            background: #ff9800;
+            box-shadow: 0 0 30px #ff9800;
+            animation: blink 0.5s infinite;
+        }
+        
         @keyframes pulse {
             0% { transform: scale(0.95); opacity: 0.8; }
             50% { transform: scale(1.05); opacity: 1; }
             100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
         }
         
         .connection-badge {
@@ -173,62 +185,47 @@
             100% { opacity: 1; transform: scale(1); color: inherit; }
         }
         
-        .timestamp {
-            font-size: 0.85em;
-            color: rgba(255,255,255,0.7);
-        }
-        
         .control-btn {
             margin: 10px;
-            padding: 15px 30px;
-            font-size: 1.2em;
+            padding: 12px 25px;
+            font-size: 1.1em;
             border-radius: 50px;
             transition: all 0.3s ease;
+            border: none;
         }
         
         .control-btn:hover {
             transform: scale(1.05);
         }
         
-        .btn-on {
-            background: #4CAF50;
-            color: white;
-            border: none;
+        .btn-on { background: #4CAF50; color: white; }
+        .btn-off { background: #f44336; color: white; }
+        .btn-toggle { background: #2196F3; color: white; }
+        .btn-blink { background: #ff9800; color: white; }
+        .btn-blink-stop { background: #9C27B0; color: white; }
+        
+        .speed-slider {
+            width: 100%;
+            margin: 10px 0;
         }
         
-        .btn-off {
-            background: #f44336;
-            color: white;
-            border: none;
+        .timestamp {
+            font-size: 0.85em;
+            color: rgba(255,255,255,0.7);
         }
         
-        .btn-toggle {
-            background: #ff9800;
-            color: white;
-            border: none;
-        }
-        
-        /* Responsive */
         @media (max-width: 768px) {
-            .stat-value {
-                font-size: 1.8em;
-            }
-            .led-indicator {
-                width: 60px;
-                height: 60px;
-            }
-            .control-btn {
-                padding: 10px 20px;
-                font-size: 1em;
-            }
+            .stat-value { font-size: 1.5em; }
+            .led-indicator { width: 50px; height: 50px; }
+            .control-btn { padding: 8px 16px; font-size: 0.9em; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="text-center mb-5" style="animation: fadeIn 0.8s ease;">
-            <h1 class="text-white mb-3">
+        <div class="text-center mb-4" style="animation: fadeIn 0.8s ease;">
+            <h1 class="text-white mb-2">
                 <i class="fas fa-microchip"></i> ESP8266 IoT Dashboard
             </h1>
             <p class="text-white-50">Real-time Monitoring & Control System</p>
@@ -240,22 +237,41 @@
         <!-- Control Panel -->
         <div class="row mb-4">
             <div class="col-12" style="animation: slideUp 0.6s ease 0.1s both;">
-                <div class="glass-card p-4 text-center">
-                    <h4 class="text-white mb-3">
-                        <i class="fas fa-gamepad"></i> ควบคุม LED
+                <div class="glass-card p-4">
+                    <h4 class="text-white mb-3 text-center">
+                        <i class="fas fa-gamepad"></i> ควบคุม LED Built-in
                     </h4>
-                    <div>
+                    <div class="text-center">
                         <button class="control-btn btn-on" onclick="sendCommand('ON')">
-                            <i class="fas fa-power-off"></i> เปิด LED
+                            <i class="fas fa-power-off"></i> เปิด
                         </button>
                         <button class="control-btn btn-off" onclick="sendCommand('OFF')">
-                            <i class="fas fa-power-off"></i> ปิด LED
+                            <i class="fas fa-power-off"></i> ปิด
                         </button>
                         <button class="control-btn btn-toggle" onclick="sendCommand('TOGGLE')">
                             <i class="fas fa-sync-alt"></i> เปลี่ยนสถานะ
                         </button>
+                        <button class="control-btn btn-blink" onclick="sendCommand('BLINK')">
+                            <i class="fas fa-eye"></i> โหมดกระพริบ
+                        </button>
+                        <button class="control-btn btn-blink-stop" onclick="sendCommand('BLINK_STOP')">
+                            <i class="fas fa-stop"></i> หยุดกระพริบ
+                        </button>
                     </div>
-                    <div class="text-white-50 mt-3">
+                    
+                    <!-- Speed Control -->
+                    <div class="mt-4">
+                        <label class="text-white">
+                            <i class="fas fa-tachometer-alt"></i> ความเร็วกระพริบ: 
+                            <span id="speedValue">500</span> ms
+                        </label>
+                        <input type="range" class="speed-slider" id="blinkSpeed" min="100" max="1000" step="50" value="500">
+                        <button class="btn btn-sm btn-light mt-2" onclick="applySpeed()">
+                            <i class="fas fa-check"></i> ใช้ความเร็วนี้
+                        </button>
+                    </div>
+                    
+                    <div class="text-white-50 mt-3 text-center">
                         <small><i class="fas fa-info-circle"></i> ส่งคำสั่งผ่าน MQTT topic: sumett/control</small>
                     </div>
                 </div>
@@ -269,7 +285,6 @@
                     <i class="fas fa-temperature-high fa-2x" style="color: #ff6b6b;"></i>
                     <div class="stat-value" id="temperature">--</div>
                     <div class="stat-label">อุณหภูมิ (°C)</div>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
@@ -278,7 +293,6 @@
                     <i class="fas fa-lightbulb fa-2x" style="color: #ffd93d;"></i>
                     <div class="stat-value" id="ledStatus">--</div>
                     <div class="stat-label">สถานะ LED</div>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
@@ -287,7 +301,6 @@
                     <i class="fas fa-wifi fa-2x" style="color: #4ecdc4;"></i>
                     <div class="stat-value" id="rssi">--</div>
                     <div class="stat-label">WiFi Signal (dBm)</div>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
@@ -295,13 +308,12 @@
                 <div class="stat-card" onclick="showDetail('uptime')">
                     <i class="fas fa-clock fa-2x" style="color: #a8e6cf;"></i>
                     <div class="stat-value" id="uptime">--</div>
-                    <div class="stat-label">Uptime (วินาที)</div>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
+                    <div class="stat-label">Uptime</div>
                 </div>
             </div>
         </div>
         
-        <!-- System Details Card -->
+        <!-- System Details -->
         <div class="row mb-4">
             <div class="col-12" style="animation: slideUp 0.6s ease 0.3s both;">
                 <div class="glass-card p-4">
@@ -322,31 +334,38 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <div class="text-white mb-2">
-                                <i class="fas fa-tachometer-alt"></i> การแยกส่วนของ RAM (Fragmentation)
+                                <i class="fas fa-tachometer-alt"></i> การแยกส่วนของ RAM
                             </div>
                             <div class="progress-bar-custom">
                                 <div class="progress-fill" id="fragProgress" style="width: 0%; background: #ff6b6b;"></div>
                             </div>
                             <div class="text-white-50 mt-1">
-                                <span id="heapFrag">--</span>% (ยิ่งน้อยยิ่งดี)
+                                <span id="heapFrag">--</span>%
                             </div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <div class="text-white">
-                                <i class="fas fa-microchip"></i> CPU ความถี่: 
-                                <strong id="cpuFreq">--</strong> MHz
+                                <i class="fas fa-microchip"></i> CPU: <strong id="cpuFreq">--</strong> MHz
                             </div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <div class="text-white">
-                                <i class="fas fa-database"></i> Flash Memory: 
-                                <strong id="flashSize">--</strong> MB
+                                <i class="fas fa-database"></i> Flash: <strong id="flashSize">--</strong> MB
                             </div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <div class="text-white">
-                                <i class="fas fa-id-card"></i> Chip ID: 
-                                <strong id="chipId">--</strong>
+                                <i class="fas fa-id-card"></i> Chip ID: <strong id="chipId">--</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white">
+                                <i class="fas fa-eye"></i> โหมด: <strong id="blinkModeText">ปกติ</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-white">
+                                <i class="fas fa-tachometer-alt"></i> ความเร็วกระพริบ: <strong id="blinkSpeedText">--</strong> ms
                             </div>
                         </div>
                     </div>
@@ -354,7 +373,7 @@
             </div>
         </div>
         
-        <!-- LED Visual Indicator -->
+        <!-- LED Visual -->
         <div class="row mb-4">
             <div class="col-12" style="animation: slideUp 0.6s ease 0.4s both;">
                 <div class="glass-card p-4 text-center">
@@ -374,7 +393,6 @@
     </div>
     
     <script>
-        // MQTT Configuration
         const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
         const clientId = "web_dashboard_" + Math.random().toString(36).substr(2, 10);
         const statusTopic = "sumett/status";
@@ -383,15 +401,9 @@
         let client = null;
         let currentData = {};
         
-        // ✅ ฟังก์ชันส่งคำสั่งควบคุม LED
         function sendCommand(command) {
             if (!client || !client.isConnected()) {
-                Swal.fire({
-                    title: 'ไม่สามารถส่งคำสั่งได้',
-                    text: 'กรุณารอการเชื่อมต่อ MQTT ก่อน',
-                    icon: 'error',
-                    confirmButtonColor: '#667eea'
-                });
+                Swal.fire('ไม่สามารถส่งคำสั่งได้', 'กรุณารอการเชื่อมต่อ MQTT', 'error');
                 return;
             }
             
@@ -399,206 +411,106 @@
             message.destinationName = controlTopic;
             client.send(message);
             
-            Swal.fire({
-                title: 'ส่งคำสั่งแล้ว!',
-                text: `คำสั่ง: ${command === 'ON' ? 'เปิด LED' : (command === 'OFF' ? 'ปิด LED' : 'เปลี่ยนสถานะ LED')}`,
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white'
-            });
+            let msg = '';
+            if (command === 'ON') msg = 'เปิด LED';
+            else if (command === 'OFF') msg = 'ปิด LED';
+            else if (command === 'TOGGLE') msg = 'เปลี่ยนสถานะ LED';
+            else if (command === 'BLINK') msg = 'เปิดโหมดกระพริบ';
+            else if (command === 'BLINK_STOP') msg = 'หยุดกระพริบ';
             
-            console.log(`📤 Command sent: ${command}`);
+            Swal.fire({ title: 'ส่งคำสั่งแล้ว!', text: msg, icon: 'success', timer: 1000, showConfirmButton: false });
         }
         
-        // Show detail with SweetAlert
+        function applySpeed() {
+            const speed = document.getElementById('blinkSpeed').value;
+            sendCommand(`BLINK_SPEED:${speed}`);
+            document.getElementById('speedValue').innerHTML = speed;
+        }
+        
         function showDetail(type) {
-            switch(type) {
-                case 'temperature':
-                    Swal.fire({
-                        title: '🌡️ อุณหภูมิ',
-                        html: `ค่าปัจจุบัน: <strong style="font-size: 2em;">${currentData.temp || '--'}</strong> °C<br>
-                               <small>อัปเดตล่าสุด: ${document.getElementById('lastUpdate').innerText}</small>`,
-                        icon: 'info',
-                        confirmButtonColor: '#667eea',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white'
-                    });
-                    break;
-                case 'led':
-                    Swal.fire({
-                        title: '💡 สถานะ LED',
-                        html: `LED กำลัง <strong>${currentData.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่'}</strong><br>
-                               <div style="width: 80px; height: 80px; margin: 20px auto; border-radius: 50%; ${currentData.led === 1 ? 'background: #4CAF50; box-shadow: 0 0 20px #4CAF50;' : 'background: #f44336; box-shadow: 0 0 20px #f44336;'} animation: pulse 1.5s infinite;"></div>`,
-                        icon: currentData.led === 1 ? 'success' : 'error',
-                        confirmButtonColor: '#667eea',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white'
-                    });
-                    break;
-                case 'rssi':
-                    let quality = '';
-                    let icon = '';
-                    if (currentData.rssi > -50) {
-                        quality = 'ดีมาก';
-                        icon = '✅';
-                    } else if (currentData.rssi > -70) {
-                        quality = 'ปานกลาง';
-                        icon = '⚠️';
-                    } else {
-                        quality = 'อ่อน';
-                        icon = '❌';
-                    }
-                    Swal.fire({
-                        title: '📶 ความแรงสัญญาณ WiFi',
-                        html: `${icon} ค่า: <strong style="font-size: 1.5em;">${currentData.rssi || '--'}</strong> dBm<br>
-                               คุณภาพ: <strong>${quality}</strong><br>
-                               <small>ค่าใกล้ 0 ดีกว่า (ดีสุด -30, แย่สุด -90)</small>`,
-                        icon: currentData.rssi > -70 ? 'success' : 'warning',
-                        confirmButtonColor: '#667eea',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white'
-                    });
-                    break;
-                case 'uptime':
-                    let hours = Math.floor(currentData.uptime / 3600);
-                    let minutes = Math.floor((currentData.uptime % 3600) / 60);
-                    let seconds = currentData.uptime % 60;
-                    Swal.fire({
-                        title: '⏱️ เวลาทำงาน (Uptime)',
-                        html: `<div style="font-size: 1.5em;">${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที</div>
-                               <small>รวม: ${currentData.uptime || 0} วินาที</small>`,
-                        icon: 'info',
-                        confirmButtonColor: '#667eea',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white'
-                    });
-                    break;
+            if (type === 'temperature') {
+                Swal.fire({ title: '🌡️ อุณหภูมิ', html: `ค่าปัจจุบัน: <strong>${currentData.temp || '--'}</strong> °C`, icon: 'info' });
+            } else if (type === 'led') {
+                Swal.fire({ title: '💡 สถานะ LED', html: `LED กำลัง <strong>${currentData.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่'}</strong>`, icon: currentData.led === 1 ? 'success' : 'error' });
+            } else if (type === 'rssi') {
+                let quality = currentData.rssi > -50 ? 'ดีมาก' : (currentData.rssi > -70 ? 'ปานกลาง' : 'อ่อน');
+                Swal.fire({ title: '📶 WiFi Signal', html: `ค่า: <strong>${currentData.rssi || '--'}</strong> dBm<br>คุณภาพ: ${quality}`, icon: 'info' });
+            } else if (type === 'uptime') {
+                Swal.fire({ title: '⏱️ Uptime', html: `<strong>${document.getElementById('uptime').innerHTML}</strong>`, icon: 'info' });
             }
         }
         
-        // Format uptime
         function formatUptime(seconds) {
             if (!seconds) return '--';
-            let hours = Math.floor(seconds / 3600);
-            let minutes = Math.floor((seconds % 3600) / 60);
-            let secs = seconds % 60;
-            return `${hours}:${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            let h = Math.floor(seconds / 3600);
+            let m = Math.floor((seconds % 3600) / 60);
+            let s = seconds % 60;
+            return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }
         
-        // Update UI with animation
         function updateUI(data) {
-            const elements = ['temperature', 'freeHeap', 'heapFrag', 'rssi', 'uptime'];
-            elements.forEach(id => {
-                const elem = document.getElementById(id);
-                if (elem) {
-                    elem.classList.add('value-updated');
-                    setTimeout(() => elem.classList.remove('value-updated'), 400);
-                }
-            });
-            
-            if (data.temp !== undefined) {
-                document.getElementById('temperature').innerHTML = data.temp;
-                let tempColor = data.temp > 30 ? '#ff6b6b' : (data.temp < 20 ? '#4ecdc4' : '#ffd93d');
-                document.getElementById('temperature').style.color = tempColor;
-            }
-            
+            // Update LED Visual
             if (data.led !== undefined) {
+                const ledDiv = document.getElementById('ledVisual');
                 const ledText = data.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่';
                 document.getElementById('ledStatus').innerHTML = ledText;
                 document.getElementById('ledText').innerHTML = `LED กำลัง ${ledText}`;
                 
-                const ledVisual = document.getElementById('ledVisual');
-                ledVisual.className = `led-indicator ${data.led === 1 ? 'led-on' : 'led-off'}`;
+                if (data.blinkMode === 1) {
+                    ledDiv.className = 'led-indicator led-blink';
+                    document.getElementById('blinkModeText').innerHTML = '<span style="color:#ff9800">🚨 โหมดกระพริบ</span>';
+                } else {
+                    ledDiv.className = `led-indicator ${data.led === 1 ? 'led-on' : 'led-off'}`;
+                    document.getElementById('blinkModeText').innerHTML = 'ปกติ';
+                }
             }
             
-            if (data.rssi !== undefined) {
-                document.getElementById('rssi').innerHTML = data.rssi;
-                let rssiColor = data.rssi > -50 ? '#4CAF50' : (data.rssi > -70 ? '#FFC107' : '#f44336');
-                document.getElementById('rssi').style.color = rssiColor;
+            if (data.blinkSpeed) {
+                document.getElementById('blinkSpeedText').innerHTML = data.blinkSpeed;
+                document.getElementById('speedValue').innerHTML = data.blinkSpeed;
+                document.getElementById('blinkSpeed').value = data.blinkSpeed;
             }
             
-            if (data.uptime !== undefined) {
-                document.getElementById('uptime').innerHTML = formatUptime(data.uptime);
-            }
-            
-            if (data.heap !== undefined) {
+            if (data.temp) document.getElementById('temperature').innerHTML = data.temp;
+            if (data.rssi) document.getElementById('rssi').innerHTML = data.rssi;
+            if (data.uptime) document.getElementById('uptime').innerHTML = formatUptime(data.uptime);
+            if (data.heap) {
                 document.getElementById('freeHeap').innerHTML = data.heap;
-                let heapPercent = (data.heap / 50000) * 100;
-                document.getElementById('heapProgress').style.width = Math.min(heapPercent, 100) + '%';
+                document.getElementById('heapProgress').style.width = Math.min((data.heap/50000)*100, 100) + '%';
             }
-            
             if (data.frag !== undefined) {
                 document.getElementById('heapFrag').innerHTML = data.frag;
                 document.getElementById('fragProgress').style.width = Math.min(data.frag, 100) + '%';
             }
+            if (data.cpu) document.getElementById('cpuFreq').innerHTML = data.cpu;
+            if (data.flash) document.getElementById('flashSize').innerHTML = data.flash;
+            if (data.chip) document.getElementById('chipId').innerHTML = data.chip;
             
-            if (data.cpu !== undefined) document.getElementById('cpuFreq').innerHTML = data.cpu;
-            if (data.flash !== undefined) document.getElementById('flashSize').innerHTML = data.flash;
-            if (data.chip !== undefined) document.getElementById('chipId').innerHTML = data.chip;
-            
-            const now = new Date();
-            document.getElementById('lastUpdate').innerHTML = now.toLocaleTimeString('th-TH');
-            
+            document.getElementById('lastUpdate').innerHTML = new Date().toLocaleTimeString('th-TH');
             currentData = data;
         }
         
-        // Connect to MQTT
         function connectMQTT() {
             client = new Paho.MQTT.Client(brokerUrl, clientId);
-            
-            client.onConnectionLost = (responseObject) => {
-                console.log("Connection lost:", responseObject.errorMessage);
+            client.onConnectionLost = () => {
                 document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออฟไลน์';
                 document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
             };
-            
             client.onMessageArrived = (message) => {
-                console.log("Message received:", message.payloadString);
-                try {
-                    const data = JSON.parse(message.payloadString);
-                    updateUI(data);
-                } catch(e) {
-                    console.error("JSON parse error:", e);
-                }
+                try { updateUI(JSON.parse(message.payloadString)); } catch(e) {}
             };
-            
             client.connect({
                 onSuccess: () => {
-                    console.log("✅ MQTT Connected");
                     document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออนไลน์';
                     document.getElementById('connectionStatus').className = 'connection-badge connection-online';
-                    
                     client.subscribe(statusTopic);
-                    console.log("Subscribed to:", statusTopic);
-                    
-                    Swal.fire({
-                        title: 'เชื่อมต่อสำเร็จ! 🎉',
-                        text: 'สามารถควบคุม LED ผ่านปุ่มด้านบนได้เลย',
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false,
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white'
-                    });
                 },
-                onFailure: (err) => {
-                    console.error("Connection failed:", err.errorMessage);
-                    document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> เชื่อมต่อล้มเหลว';
-                    document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
-                    
-                    setTimeout(connectMQTT, 5000);
-                },
-                useSSL: true,
-                timeout: 5
+                onFailure: () => setTimeout(connectMQTT, 5000),
+                useSSL: true
             });
         }
         
-        // Start connection when page loads
-        window.addEventListener('load', () => {
-            connectMQTT();
-        });
+        window.addEventListener('load', connectMQTT);
     </script>
 </body>
 </html>
