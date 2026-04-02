@@ -14,17 +14,11 @@
     <!-- Google Fonts - Kanit -->
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- AOS Animation -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    
-    <!-- MQTT Library -->
-    <script src="https://unpkg.com/mqtt@5.0.0/dist/mqtt.min.js"></script>
-    
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Chart.js สำหรับกราฟ -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Paho MQTT (Stable) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     
     <style>
         * {
@@ -35,6 +29,12 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px 0;
+            animation: fadeInPage 0.8s ease;
+        }
+        
+        @keyframes fadeInPage {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .glass-card {
@@ -44,6 +44,18 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: slideUp 0.6s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .glass-card:hover {
@@ -58,6 +70,18 @@
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            animation: fadeInScale 0.5s ease;
+        }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
         
         .stat-card:hover {
@@ -69,6 +93,7 @@
             font-size: 2.5em;
             font-weight: 700;
             color: #667eea;
+            transition: all 0.3s ease;
         }
         
         .stat-label {
@@ -79,31 +104,32 @@
         
         .led-indicator {
             display: inline-block;
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             transition: all 0.3s ease;
-            animation: pulse 2s infinite;
+            animation: pulse 1.5s infinite;
         }
         
         .led-on {
             background: #4CAF50;
-            box-shadow: 0 0 20px #4CAF50;
+            box-shadow: 0 0 30px #4CAF50;
         }
         
         .led-off {
             background: #f44336;
-            box-shadow: 0 0 20px #f44336;
+            box-shadow: 0 0 30px #f44336;
         }
         
         @keyframes pulse {
             0% { transform: scale(0.95); opacity: 0.8; }
-            100% { transform: scale(1.05); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
         }
         
         .connection-badge {
             display: inline-block;
-            padding: 8px 16px;
+            padding: 8px 20px;
             border-radius: 20px;
             font-weight: 500;
             animation: fadeIn 0.5s ease;
@@ -127,29 +153,44 @@
         .progress-bar-custom {
             height: 8px;
             border-radius: 10px;
-            background: rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.2);
             overflow: hidden;
         }
         
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #667eea, #764ba2);
-            transition: width 0.3s ease;
+            transition: width 0.5s ease;
             border-radius: 10px;
         }
         
         .value-updated {
-            animation: valueFlash 0.5s ease;
+            animation: valueFlash 0.4s ease;
         }
         
         @keyframes valueFlash {
-            0% { opacity: 0.5; transform: scale(0.95); }
-            100% { opacity: 1; transform: scale(1); }
+            0% { opacity: 0.5; transform: scale(0.95); color: #ffd93d; }
+            100% { opacity: 1; transform: scale(1); color: inherit; }
         }
         
         .timestamp {
             font-size: 0.85em;
             color: rgba(255,255,255,0.7);
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Scrollbar styling */
@@ -170,16 +211,27 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255,255,255,0.5);
         }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stat-value {
+                font-size: 1.8em;
+            }
+            .led-indicator {
+                width: 60px;
+                height: 60px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="text-center mb-5" data-aos="fade-down">
+        <div class="text-center mb-5" style="animation: fadeIn 0.8s ease;">
             <h1 class="text-white mb-3">
                 <i class="fas fa-microchip"></i> ESP8266 IoT Dashboard
             </h1>
-            <p class="text-white-50">Real-time Monitoring System</p>
+            <p class="text-white-50">Real-time Monitoring System | MQTT over WebSocket</p>
             <div id="connectionStatus" class="connection-badge connection-offline">
                 <i class="fas fa-circle"></i> กำลังเชื่อมต่อ...
             </div>
@@ -187,86 +239,86 @@
         
         <!-- Main Stats Row -->
         <div class="row mb-4">
-            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="100">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.1s both;">
                 <div class="stat-card" onclick="showDetail('temperature')">
                     <i class="fas fa-temperature-high fa-2x" style="color: #ff6b6b;"></i>
                     <div class="stat-value" id="temperature">--</div>
                     <div class="stat-label">อุณหภูมิ (°C)</div>
-                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="200">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.2s both;">
                 <div class="stat-card" onclick="showDetail('led')">
                     <i class="fas fa-lightbulb fa-2x" style="color: #ffd93d;"></i>
                     <div class="stat-value" id="ledStatus">--</div>
                     <div class="stat-label">สถานะ LED</div>
-                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="300">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.3s both;">
                 <div class="stat-card" onclick="showDetail('rssi')">
                     <i class="fas fa-wifi fa-2x" style="color: #4ecdc4;"></i>
                     <div class="stat-value" id="rssi">--</div>
                     <div class="stat-label">WiFi Signal (dBm)</div>
-                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
             
-            <div class="col-md-3 mb-3" data-aos="fade-up" data-aos-delay="400">
+            <div class="col-md-3 mb-3" style="animation: fadeInScale 0.5s ease 0.4s both;">
                 <div class="stat-card" onclick="showDetail('uptime')">
                     <i class="fas fa-clock fa-2x" style="color: #a8e6cf;"></i>
                     <div class="stat-value" id="uptime">--</div>
                     <div class="stat-label">Uptime (วินาที)</div>
-                    <small class="text-muted">คลิกเพื่อดูรายละเอียด</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> คลิกเพื่อดูรายละเอียด</small>
                 </div>
             </div>
         </div>
         
         <!-- System Details Card -->
         <div class="row mb-4">
-            <div class="col-12" data-aos="fade-up" data-aos-delay="500">
+            <div class="col-12" style="animation: slideUp 0.6s ease 0.3s both;">
                 <div class="glass-card p-4">
                     <h4 class="text-white mb-4">
-                        <i class="fas fa-chart-line"></i> ระบบสถานะ
+                        <i class="fas fa-chart-line"></i> ระบบสถานะ ESP8266
                     </h4>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <div class="text-white mb-2">
-                                <i class="fas fa-memory"></i> หน่วยความจำ (RAM)
+                                <i class="fas fa-memory"></i> หน่วยความจำว่าง (RAM)
                             </div>
                             <div class="progress-bar-custom">
                                 <div class="progress-fill" id="heapProgress" style="width: 0%"></div>
                             </div>
                             <div class="text-white-50 mt-1">
-                                <span id="freeHeap">--</span> bytes ว่าง
+                                <span id="freeHeap">--</span> bytes / 50 KB
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <div class="text-white mb-2">
-                                <i class="fas fa-tachometer-alt"></i> การแยกส่วนของ RAM
+                                <i class="fas fa-tachometer-alt"></i> การแยกส่วนของ RAM (Fragmentation)
                             </div>
                             <div class="progress-bar-custom">
                                 <div class="progress-fill" id="fragProgress" style="width: 0%; background: #ff6b6b;"></div>
                             </div>
                             <div class="text-white-50 mt-1">
-                                <span id="heapFrag">--</span>%
+                                <span id="heapFrag">--</span>% (ยิ่งน้อยยิ่งดี)
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <div class="text-white">
                                 <i class="fas fa-microchip"></i> CPU ความถี่: 
                                 <strong id="cpuFreq">--</strong> MHz
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <div class="text-white">
                                 <i class="fas fa-database"></i> Flash Memory: 
                                 <strong id="flashSize">--</strong> MB
                             </div>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <div class="text-white">
                                 <i class="fas fa-id-card"></i> Chip ID: 
                                 <strong id="chipId">--</strong>
@@ -279,7 +331,7 @@
         
         <!-- LED Visual Indicator -->
         <div class="row mb-4">
-            <div class="col-12" data-aos="fade-up" data-aos-delay="600">
+            <div class="col-12" style="animation: slideUp 0.6s ease 0.4s both;">
                 <div class="glass-card p-4 text-center">
                     <h4 class="text-white mb-3">
                         <i class="fas fa-lightbulb"></i> สถานะ LED ปัจจุบัน
@@ -291,7 +343,7 @@
         </div>
         
         <!-- Timestamp -->
-        <div class="text-center timestamp" data-aos="fade-up">
+        <div class="text-center timestamp" style="animation: fadeIn 0.8s ease 0.5s both;">
             <i class="fas fa-sync-alt"></i> อัปเดตล่าสุด: <span id="lastUpdate">--:--:--</span>
         </div>
     </div>
@@ -305,41 +357,53 @@
         let client = null;
         let currentData = {};
         
-        // Initialize AOS
-        AOS.init({
-            duration: 1000,
-            once: true
-        });
-        
         // Show detail with SweetAlert
         function showDetail(type) {
             switch(type) {
                 case 'temperature':
                     Swal.fire({
                         title: '🌡️ อุณหภูมิ',
-                        html: `ค่าปัจจุบัน: <strong>${currentData.temp || '--'}</strong> °C<br>
+                        html: `ค่าปัจจุบัน: <strong style="font-size: 2em;">${currentData.temp || '--'}</strong> °C<br>
                                <small>อัปเดตล่าสุด: ${document.getElementById('lastUpdate').innerText}</small>`,
                         icon: 'info',
-                        confirmButtonColor: '#667eea'
+                        confirmButtonColor: '#667eea',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white'
                     });
                     break;
                 case 'led':
                     Swal.fire({
                         title: '💡 สถานะ LED',
                         html: `LED กำลัง <strong>${currentData.led === 1 ? 'เปิดอยู่' : 'ปิดอยู่'}</strong><br>
-                               <div class="led-indicator ${currentData.led === 1 ? 'led-on' : 'led-off'}" style="width: 40px; height: 40px; margin: 10px auto;"></div>`,
+                               <div style="width: 80px; height: 80px; margin: 20px auto; border-radius: 50%; ${currentData.led === 1 ? 'background: #4CAF50; box-shadow: 0 0 20px #4CAF50;' : 'background: #f44336; box-shadow: 0 0 20px #f44336;'} animation: pulse 1.5s infinite;"></div>`,
                         icon: currentData.led === 1 ? 'success' : 'error',
-                        confirmButtonColor: '#667eea'
+                        confirmButtonColor: '#667eea',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white'
                     });
                     break;
                 case 'rssi':
-                    let quality = currentData.rssi > -50 ? 'ดีมาก' : (currentData.rssi > -70 ? 'ปานกลาง' : 'อ่อน');
+                    let quality = '';
+                    let icon = '';
+                    if (currentData.rssi > -50) {
+                        quality = 'ดีมาก';
+                        icon = '✅';
+                    } else if (currentData.rssi > -70) {
+                        quality = 'ปานกลาง';
+                        icon = '⚠️';
+                    } else {
+                        quality = 'อ่อน';
+                        icon = '❌';
+                    }
                     Swal.fire({
                         title: '📶 ความแรงสัญญาณ WiFi',
-                        html: `ค่า: <strong>${currentData.rssi || '--'}</strong> dBm<br>
-                               คุณภาพ: <strong>${quality}</strong>`,
+                        html: `${icon} ค่า: <strong style="font-size: 1.5em;">${currentData.rssi || '--'}</strong> dBm<br>
+                               คุณภาพ: <strong>${quality}</strong><br>
+                               <small>ค่าใกล้ 0 ดีกว่า (ดีสุด -30, แย่สุด -90)</small>`,
                         icon: currentData.rssi > -70 ? 'success' : 'warning',
-                        confirmButtonColor: '#667eea'
+                        confirmButtonColor: '#667eea',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white'
                     });
                     break;
                 case 'uptime':
@@ -348,37 +412,43 @@
                     let seconds = currentData.uptime % 60;
                     Swal.fire({
                         title: '⏱️ เวลาทำงาน (Uptime)',
-                        html: `${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที<br>
+                        html: `<div style="font-size: 1.5em;">${hours} ชั่วโมง ${minutes} นาที ${seconds} วินาที</div>
                                <small>รวม: ${currentData.uptime || 0} วินาที</small>`,
                         icon: 'info',
-                        confirmButtonColor: '#667eea'
+                        confirmButtonColor: '#667eea',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white'
                     });
                     break;
             }
         }
         
+        // Format uptime
+        function formatUptime(seconds) {
+            if (!seconds) return '--';
+            let hours = Math.floor(seconds / 3600);
+            let minutes = Math.floor((seconds % 3600) / 60);
+            let secs = seconds % 60;
+            return `${hours}:${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+        }
+        
         // Update UI with animation
         function updateUI(data) {
-            // Add animation class
+            // Add animation class to all value elements
             const elements = ['temperature', 'freeHeap', 'heapFrag', 'rssi', 'uptime'];
             elements.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
                     elem.classList.add('value-updated');
-                    setTimeout(() => elem.classList.remove('value-updated'), 500);
+                    setTimeout(() => elem.classList.remove('value-updated'), 400);
                 }
             });
             
             // Update temperature
-            if (data.temp) {
+            if (data.temp !== undefined) {
                 document.getElementById('temperature').innerHTML = data.temp;
-                if (data.temp > 30) {
-                    document.getElementById('temperature').style.color = '#ff6b6b';
-                } else if (data.temp < 20) {
-                    document.getElementById('temperature').style.color = '#4ecdc4';
-                } else {
-                    document.getElementById('temperature').style.color = '#667eea';
-                }
+                let tempColor = data.temp > 30 ? '#ff6b6b' : (data.temp < 20 ? '#4ecdc4' : '#ffd93d');
+                document.getElementById('temperature').style.color = tempColor;
             }
             
             // Update LED
@@ -392,22 +462,19 @@
             }
             
             // Update RSSI
-            if (data.rssi) {
+            if (data.rssi !== undefined) {
                 document.getElementById('rssi').innerHTML = data.rssi;
                 let rssiColor = data.rssi > -50 ? '#4CAF50' : (data.rssi > -70 ? '#FFC107' : '#f44336');
                 document.getElementById('rssi').style.color = rssiColor;
             }
             
             // Update uptime
-            if (data.uptime) {
-                let hours = Math.floor(data.uptime / 3600);
-                let minutes = Math.floor((data.uptime % 3600) / 60);
-                let seconds = data.uptime % 60;
-                document.getElementById('uptime').innerHTML = `${hours}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+            if (data.uptime !== undefined) {
+                document.getElementById('uptime').innerHTML = formatUptime(data.uptime);
             }
             
             // Update system info
-            if (data.heap) {
+            if (data.heap !== undefined) {
                 document.getElementById('freeHeap').innerHTML = data.heap;
                 let heapPercent = (data.heap / 50000) * 100;
                 document.getElementById('heapProgress').style.width = Math.min(heapPercent, 100) + '%';
@@ -418,9 +485,9 @@
                 document.getElementById('fragProgress').style.width = Math.min(data.frag, 100) + '%';
             }
             
-            if (data.cpu) document.getElementById('cpuFreq').innerHTML = data.cpu;
-            if (data.flash) document.getElementById('flashSize').innerHTML = data.flash;
-            if (data.chip) document.getElementById('chipId').innerHTML = data.chip;
+            if (data.cpu !== undefined) document.getElementById('cpuFreq').innerHTML = data.cpu;
+            if (data.flash !== undefined) document.getElementById('flashSize').innerHTML = data.flash;
+            if (data.chip !== undefined) document.getElementById('chipId').innerHTML = data.chip;
             
             // Update timestamp
             const now = new Date();
@@ -430,61 +497,61 @@
             currentData = data;
         }
         
-        // Connect to MQTT
+        // Connect to MQTT using Paho
         function connectMQTT() {
-            client = mqtt.connect(brokerUrl, {
-                clientId: clientId,
-                clean: true,
-                connectTimeout: 4000,
-                reconnectPeriod: 1000
-            });
+            client = new Paho.MQTT.Client(brokerUrl, clientId);
             
-            client.on('connect', () => {
-                console.log('✅ MQTT Connected');
-                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออนไลน์';
-                document.getElementById('connectionStatus').className = 'connection-badge connection-online';
-                
-                client.subscribe(topic, { qos: 0 }, (err) => {
-                    if (!err) {
-                        console.log('✅ Subscribed to', topic);
-                        Swal.fire({
-                            title: 'เชื่อมต่อสำเร็จ!',
-                            text: 'กำลังรับข้อมูลจาก ESP8266',
-                            icon: 'success',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    }
-                });
-            });
-            
-            client.on('message', (topic, message) => {
-                const messageStr = message.toString();
-                console.log('📨 Received:', messageStr);
-                
-                try {
-                    const data = JSON.parse(messageStr);
-                    updateUI(data);
-                } catch(e) {
-                    console.error('JSON parse error:', e);
-                }
-            });
-            
-            client.on('error', (err) => {
-                console.error('❌ MQTT Error:', err);
+            client.onConnectionLost = (responseObject) => {
+                console.log("Connection lost:", responseObject.errorMessage);
                 document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออฟไลน์';
                 document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
-            });
+            };
             
-            client.on('reconnect', () => {
-                console.log('🔄 Reconnecting...');
-                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> กำลังเชื่อมต่อใหม่...';
-                document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
+            client.onMessageArrived = (message) => {
+                console.log("Message received:", message.payloadString);
+                try {
+                    const data = JSON.parse(message.payloadString);
+                    updateUI(data);
+                } catch(e) {
+                    console.error("JSON parse error:", e);
+                }
+            };
+            
+            client.connect({
+                onSuccess: () => {
+                    console.log("✅ MQTT Connected");
+                    document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> ออนไลน์';
+                    document.getElementById('connectionStatus').className = 'connection-badge connection-online';
+                    
+                    client.subscribe(topic);
+                    console.log("Subscribed to:", topic);
+                    
+                    Swal.fire({
+                        title: 'เชื่อมต่อสำเร็จ! 🎉',
+                        text: 'กำลังรับข้อมูลจาก ESP8266 แบบ Real-time',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white'
+                    });
+                },
+                onFailure: (err) => {
+                    console.error("Connection failed:", err.errorMessage);
+                    document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-circle"></i> เชื่อมต่อล้มเหลว';
+                    document.getElementById('connectionStatus').className = 'connection-badge connection-offline';
+                    
+                    setTimeout(connectMQTT, 5000);
+                },
+                useSSL: true,
+                timeout: 5
             });
         }
         
-        // Start connection
-        connectMQTT();
+        // Start connection when page loads
+        window.addEventListener('load', () => {
+            connectMQTT();
+        });
     </script>
 </body>
 </html>
